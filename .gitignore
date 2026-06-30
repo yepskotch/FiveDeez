@@ -5,10 +5,13 @@ Cargo.lock
 # Compiled loader outputs
 *.exe
 
-# Shellcode input files — never commit raw payloads
+# Shellcode input/output files — never commit raw or encrypted payloads
 *.bin
 *.raw
 *.sc
+
+# Exception: the empty placeholder required by include_bytes! must be tracked
+!src/payload.bin
 
 # Key material backups (if anyone saves them manually)
 *.key

