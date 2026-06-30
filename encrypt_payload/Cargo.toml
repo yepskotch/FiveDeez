@@ -1,0 +1,11 @@
+[package]
+name = "encrypt_payload"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "encrypt_payload"
+path = "src/main.rs"
+
+[dependencies]
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }

@@ -1,0 +1,31 @@
+[workspace]
+members = [".", "encrypt_payload"]
+resolver = "2"
+
+[package]
+name = "fivedeez"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "fivedeez"
+path = "src/main.rs"
+
+[dependencies]
+aes-gcm     = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+obfstr      = "0.4"
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_Memory",
+    "Win32_System_Threading",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+] }
+
+[profile.release]
+opt-level     = "z"       # optimize for size
+lto           = true      # link-time optimization
+codegen-units = 1         # single codegen unit for max optimization
+panic         = "abort"   # no unwinding runtime
+strip         = "symbols" # strip debug symbols from binary
+debug         = false

@@ -1,0 +1,24 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# Compiled loader outputs
+*.exe
+
+# Shellcode input files — never commit raw payloads
+*.bin
+*.raw
+*.sc
+
+# Key material backups (if anyone saves them manually)
+*.key
+*.hex
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

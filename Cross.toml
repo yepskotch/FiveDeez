@@ -1,0 +1,21 @@
+# Cross.toml — cargo-cross configuration for FiveDeez
+#
+# Requires: cargo install cross  (https://github.com/cross-rs/cross)
+# Usage:    cross build --target x86_64-pc-windows-gnu --release
+#
+# The x86_64-pc-windows-gnu target uses MinGW-w64 under the hood and
+# produces a standard Windows PE (.exe) that runs on Windows 10/11 and
+# Server 2016+.  No Windows machine or Wine required for compilation.
+
+[build.env]
+# Pass through the Cargo/Rust version info so cross-compiled builds report
+# the same version as native builds.
+passthrough = [
+    "CARGO_PKG_VERSION",
+    "CARGO_PKG_NAME",
+]
+
+[target.x86_64-pc-windows-gnu]
+# Use the official cross-rs Docker image which includes the MinGW-w64 toolchain.
+# Pin to a specific version for reproducible builds.
+image = "ghcr.io/cross-rs/x86_64-pc-windows-gnu:main"
